@@ -1,5 +1,8 @@
 import random, math
-
+import time,sys
+from multiprocessing import Pool
+from multiprocessing import Process , Queue
+from functools import partial
 def column(matrix, i):
 	"""
 	Returns the ith column of the matrix.
@@ -55,7 +58,7 @@ def OddEvenSort(arr, flag):
 	"""
 	sorted1, sorted2 = False, False			# flags for the two different types of compare
 	steps = 0								# initialize steps variable
-
+	#print "inside sort "+flag
 	while ((not sorted1) or (not sorted2)): # while array is not sorted
 		sorted1, sorted2 = True, True		# reset flags
 		for i in range(0, len(arr) - 1, 2): # for pairs 0-1, 2-3, 4-5, ..
@@ -84,9 +87,10 @@ def OddEvenSort(arr, flag):
 
 		# if a swap was made to the array, add one step 
 		if (sorted2 == False): steps = steps+1
-
+	
 	return (arr, steps)
-
+partial_OddEvenSortR = partial(OddEvenSort,flag = 'R')
+partial_OddEvenSortL = partial(OddEvenSort,flag = 'L')
 def ShearSort(N):
 	"""
 	Returns a random NxN matrix sorted using the Shearsort algorithm.
@@ -96,26 +100,39 @@ def ShearSort(N):
 
 	tmp_steps, steps = 0, 0 				# temp variables holding steps
 	sum_steps = 0 							# sum of steps 
-
+	#print "\t\t------------------------"+str(i)+"-----------------------------\n\n"
 	# randomize matrix
 	for i in range(0, N):
 		for j in range(0, N):
-			myMatrix[i][j] = random.randint(0, 1)
+			myMatrix[i][j] = random.randint(0, 9)
 	
 	print "Initial Phase:"
 	printMatrix(myMatrix)					# print initial matrix
-
+	#print [[row(myMatrix, r),'R'] for r in range(0,N,2)]
 	for phase in range(1, N+2):				# for every phase (1, .., N+1)
 		steps = 0 							# reset counter in every phase
-		if (phase%2 == 1):					# phase 1, 3, 5..
-			for r in range(0, N):			# for every row
-				if (r%2 == 0):				# even rows are sorted in ascending order
-					arr, tmp_steps = OddEvenSort(row(myMatrix, r), 'R')
-				elif (r%2 == 1):			# odd rows are sorted in descending order
-					arr, tmp_steps = OddEvenSort(row(myMatrix, r), 'L')
-				
-				# hold the max steps needed for the Odd-Even sort for the row
-				if steps < tmp_steps: steps = tmp_steps 
+		if (phase%2 == 1):	
+			
+			pool = Pool(1)
+			# even rows are sorted in ascending order
+			arr, tmp_steps = zip(*pool.map(partial_OddEvenSortR,[row(myMatrix, r) for r in range(0,N,2)]))
+			for i in xrange(0,N,2):	#update matrix
+				myMatrix[i] = arr[i/2]
+
+			tmp_steps = int(tmp_steps[0])
+			pool.close()
+			if steps < tmp_steps: steps = tmp_steps
+
+			# odd rows are sorted in descending order
+			pool1 = Pool(1)
+			arr, tmp_steps = zip(*pool1.map(partial_OddEvenSortL,[row(myMatrix, r) for r in range(1,N,2)]))	
+			for i in xrange(1,N,2):	#update matrix
+				myMatrix[i] = arr[(i-1)/2]
+			tmp_steps = int(tmp_steps[0])
+			pool1.close()
+			
+			# hold the max steps needed for the Odd-Even sort for the row
+			if steps < tmp_steps: steps = tmp_steps
 
 		elif (phase%2 == 0):				# phase 2, 4, 6..
 			for c in range(0, N):			# for every column
@@ -142,9 +159,9 @@ def ShearSort(N):
 
 	print "\nSteps needed: " + str(sum_steps)
 
-	return myMatrix
-
 if __name__ == "__main__":
 	dim = input("Please enter dimension: ")
+	t0 = time.clock()
 	ShearSort(dim) 							# Run the ShearSort function
-	raw_input("Press any key to continue...")
+	t1 = time.clock()
+	print t1-t0
